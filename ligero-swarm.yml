@@ -1,0 +1,130 @@
+version: '3'
+
+services:
+  web:
+    image: ligero/ligerosmart-ce
+    volumes:
+      - ligerosmart-data:/opt/otrs
+      - ./app-backups:/app-backups
+    restart: always
+    environment:
+      APP_FQDN: ligero.sertao.ifrs.edu.br
+      APP_DatabaseType: mysql
+      APP_DatabaseHost: database
+      APP_Database: ligerosmart
+      APP_DatabaseUser: ligerosmart
+      APP_DatabasePw: ligerosmart
+      APP_NodeID: 1
+      APP_LigeroSmart_Node: elasticsearch
+      APP_CustomerID: ligerosmart
+      APP_DefaultLanguage: pt_BR
+      TZ: America/Sao_Paulo
+      #START_FRONTEND: 1
+      #START_BACKEND: 1
+      #START_SSHD: 0
+      #SSH_PASSWORD: 
+      #DEBUG_MODE: 0
+      #ROOT_PASSWORD: ligero
+    ports:
+      - "8008:80"
+      #- "2202:22"
+    networks:
+      - traefik-net
+      - ligero-net
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      labels:
+        - "traefik.docker.network=traefik-net"
+        - "traefik.frontend.rule=Host:ligero.sertao.ifrs.edu.br"
+        - "traefik.port=80"
+        - "traefik.backend=ligero"
+
+
+  database:
+    image: mysql:5.7.29
+    volumes:
+      - mysql-data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ligerosmart
+      MYSQL_DATABASE: ligerosmart
+      MYSQL_USER: ligerosmart
+      MYSQL_PASSWORD: ligerosmart
+    command:
+      - --max-allowed-packet=64M
+      - --innodb-buffer-pool-size=1G
+      - --innodb-log-file-size=256M
+      - --character-set-server=utf8
+      - --bind-address=0.0.0.0
+    networks:
+      - traefik-net
+      - ligero-net
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+
+
+  elasticsearch:
+    image: ligero/elasticsearch:6.5.1
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    restart: always
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    environment:
+      - cluster.name=otrs-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    #networks:
+    #  - traefik-net
+    #  - ligero-net
+
+
+  grafana:
+    image: ligero/grafana
+    restart: always
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - 3009:3000
+    networks:
+      - traefik-net
+      - ligero-net
+
+    deploy:
+     mode: replicated
+     replicas: 1
+     placement:
+      constraints: [node.role == manager]
+    
+     labels:
+        - "traefik.docker.network=traefik-net"
+        - "traefik.frontend.rule=Host:grafana-ligero.sertao.ifrs.edu.br"
+        - "traefik.port=3000"
+        - "traefik.backend=grafana-ligero"
+
+        
+volumes:
+  ligerosmart-data:
+    driver: local
+  mysql-data:
+    driver: local
+  elasticsearch-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+
+networks:
+  traefik-net:
+     external: true
+  ligero-net:
+    driver: overlay
+
