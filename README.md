@@ -20,6 +20,12 @@ make up
 ```
 Você pode usar ainda outros parâmetros. Consulte o comando `make help`
 
+# SWARM - Para executar a stack num cluster Swarm com Proxy Reverso Traefik
+```
+docker stack deploy -c ligero-swarm.yml ligero
+```
+
+
 
 # Primeiro acesso
 
